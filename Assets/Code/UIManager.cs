@@ -22,6 +22,7 @@ public class UIManager : MonoBehaviour
     [Header("App Loader")]
     public GetAppList appListLoader; // Drag your GetAppList script here in the Inspector
     public GameObject appListPanel;
+    public Button CloseAppList;
 
     private string serverIP;
     private int port = 5000;
@@ -33,6 +34,7 @@ public class UIManager : MonoBehaviour
 
         submitButton.onClick.AddListener(OnConnectClick);
         appsButton.GetComponent<Button>().onClick.AddListener(ToggleAppPanel);
+        CloseAppList.GetComponent<Button>().onClick.AddListener(ToggleAppPanel);
     }
 
     void Update() {
@@ -78,13 +80,12 @@ public class UIManager : MonoBehaviour
     }
 
     void ToggleAppPanel() {
-        bool isActive = appListPanel.activeSelf;  // Check if the app list is currently active
-        appListPanel.SetActive(!isActive);        // If active, deactivate; if not, activate
+        bool isActive = appListPanel.activeSelf;
+        appListPanel.SetActive(!isActive);
 
-        if (appListPanel.activeSelf) {
-            // If the app list is now active, display the app list
+        if (!isActive) { // Only reload when opening
             appListLoader.DisplayAppList(serverIP);
         }
-
     }
+
 }
