@@ -20,6 +20,14 @@ public class AppListResponse
     public List<AppData> apps;
 }
 
+[System.Serializable]
+public class LaunchResponse
+{
+    public bool success;
+    public string message;
+    public string appId;
+}
+
 public class GetAppList : MonoBehaviour
 {
     public Transform appContainer; // Parent object to hold all app buttons
@@ -104,9 +112,22 @@ public class GetAppList : MonoBehaviour
         UnityWebRequest request = UnityWebRequest.Get(launchUrl);
         yield return request.SendWebRequest();
         if (request.result == UnityWebRequest.Result.Success) {
-            Debug.Log($" Successfully launched {appName}");
-        } else {
-            Debug.LogError($" Failed to launch {appName}: {request.error}");
+            string json = request.downloadHandler.text;
+            LaunchResponse response = JsonUtility.FromJson<LaunchResponse>(json);
+            if (response.success) {
+                Debug.Log($"Successfully launched {appName} with AppID: {response.appId}");
+
+                // Optional: placeholder texture until app sends a live video
+                Texture placeholder = Resources.Load<Texture>("default_texture");
+
+                // Call UIManager to spawn VR panel
+                UIManager.Instance.CreateVRPanel(response.appId, appName, placeholder);
+            } else {
+                Debug.LogError($"Server failed to launch {appName}: {response.message}");
+            }
+        } 
+        else {
+            Debug.LogError($"Failed to launch {appName}: {request.error}");
         }
     }
 
