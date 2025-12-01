@@ -1,52 +1,62 @@
+using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class MenuController : MonoBehaviour
 {
-    [SerializeField] protected Transform handTransform;
-    [SerializeField] protected Transform controllerTransform;
-    [SerializeField] protected float minAngle;
-    [SerializeField] protected float maxAngle;
-    [SerializeField] protected float panelDistance;
+    [Header("Task Bar")]
+    [SerializeField] protected OVRCameraRig ovrRig;
     [SerializeField] protected GameObject panelPrefab;
+    [SerializeField] protected float panelDistance;
+    [SerializeField] protected float distanceY;
     [SerializeField] protected float ttl = 60f;
-
-    private GameObject currentPanel;
     private float idleTimer = 0f;
 
+    private void Start() {
+        panelPrefab.SetActive(false);
+       StartCoroutine(ShowPanelWithDelay());
+    }
+
+    private IEnumerator ShowPanelWithDelay() {
+        float waitTime = Random.Range(5f, 8f);
+        yield return new WaitForSeconds(waitTime);
+
+        ShowPanel();
+    }
+
+
     protected void Update() {
-        Transform tracked = handTransform != null ? handTransform : controllerTransform;
-        if (tracked == null) return;
-
-        float angle = Vector3.Angle(tracked.up, Vector3.up);
-        bool shouldShow = angle >= minAngle && angle <= maxAngle;
-
-
-        if (shouldShow) {
-            ShowPanel(tracked);
-            idleTimer = 0f; // reset TTL timer while user is pointing
-        } else if (currentPanel != null) {
+        if (OVRInput.GetDown(OVRInput.Button.Start) ) {
+            Debug.Log("Start button pressed! Showing panel.");
+            ShowPanel();
+            
+        } 
+        else if (panelPrefab.activeSelf) {
             idleTimer += Time.deltaTime;
             if (idleTimer >= ttl) {
+                Debug.Log("TTL expired. Hiding panel.");
                 HidePanel();
                 idleTimer = 0f;
-            }
+            } 
+            //else {
+            //    Debug.Log("Panel is inactive, waiting for input.");
+            //}
         }
     }
 
-    protected void ShowPanel(Transform tracked) {
-        if (currentPanel == null) {
-            currentPanel = Instantiate(panelPrefab);
-        }
-
-        currentPanel.SetActive(true);
-        Vector3 panelPos = tracked.position + tracked.up * panelDistance;
-        Quaternion panelRot = Quaternion.LookRotation(tracked.forward);
-        currentPanel.transform.SetPositionAndRotation(panelPos, panelRot);
+    public void ShowPanel() {
+        panelPrefab.SetActive(true);
+        Transform cam = ovrRig.centerEyeAnchor;
+        Vector3 spawnPos = cam.position + cam.forward * panelDistance;
+        spawnPos.y = cam.position.y + distanceY;
+        Quaternion spawnRot = Quaternion.LookRotation(cam.forward, cam.up);
+        panelPrefab.transform.SetPositionAndRotation(spawnPos, spawnRot);
+        idleTimer = 0f; // reset TTL timer while user is pointing
     }
 
     protected void HidePanel() {
-        if (currentPanel != null) {
-            currentPanel.SetActive(false);
+        if (panelPrefab != null) {
+            panelPrefab.SetActive(false);
         }
     }
 }

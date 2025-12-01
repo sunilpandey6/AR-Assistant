@@ -1,48 +1,44 @@
 using UnityEngine;
+using System.Collections;
+
 
 public class UIFollow : MonoBehaviour
 {
-    [Header("Camera Follow")]
-    public Transform cameraTransform;  // assign CenterEyeAnchor
-
-    [Tooltip("Offset from camera in local space. Editable in Play Mode.")]
-    public Vector3 offset = new Vector3(0, -0.2f, 0.6f);
-
-    [Tooltip("Rotation tilt in degrees. Editable in Play Mode.")]
-    public Vector3 rotationEuler = Vector3.zero;
-
-    public float speed = 5f;
-
-    [Header("Features")]
-    public bool followStart = true;
-
-    void Start() {
-        if (followStart && cameraTransform != null) {
-            SpawnInFront();
+    [Header("Task Bar")]
+    [SerializeField] protected OVRCameraRig ovrRig;
+    [SerializeField] protected GameObject panelPrefab;
+    [SerializeField] protected float panelDistance;
+    [SerializeField] protected float ttl = 60f;
+    private float idleTimer = 0f;
+ 
+    private void Start() {
+        panelPrefab.SetActive(false);
+    }
+    protected void Update() {
+        if (OVRInput.GetDown(OVRInput.Button.Start)) {
+            ShowPanel();
+            idleTimer = 0f; // reset TTL timer while user is pointing
+        } else if (panelPrefab.activeSelf) {
+            idleTimer += Time.deltaTime;
+            if (idleTimer >= ttl) {
+                HidePanel();
+                idleTimer = 0f;
+            }
         }
     }
 
-    void LateUpdate() {
-        if (cameraTransform == null) return;
-
-        // Compute target position in front of camera using offset
-        Vector3 targetPos = cameraTransform.TransformPoint(offset);
-        transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * speed);
-
-        // Apply rotation from inspector
-        Quaternion targetRot = Quaternion.Euler(rotationEuler);
-        transform.rotation = Quaternion.Lerp(transform.rotation, targetRot, Time.deltaTime * speed);
+    protected void ShowPanel() {
+        panelPrefab.SetActive(true);
+        Transform cam = ovrRig.centerEyeAnchor;
+        Vector3 spawnPos = cam.position + cam.forward * panelDistance;
+        Quaternion spawnRot = Quaternion.LookRotation(cam.forward, cam.up);
+        panelPrefab.transform.SetPositionAndRotation(spawnPos, spawnRot);
+        ttl = 0f;
     }
 
-    void SpawnInFront() {
-        Vector3 targetPos = cameraTransform.TransformPoint(offset);
-        transform.position = targetPos;
-
-        // Optional initial rotation to face camera horizontally
-        Vector3 lookDir = cameraTransform.position - transform.position;
-        lookDir.y = 0; // keep upright
-        if (lookDir.sqrMagnitude > 0.001f) {
-            transform.rotation = Quaternion.LookRotation(lookDir);
+    protected void HidePanel() {
+        if (panelPrefab != null) {
+            panelPrefab.SetActive(false);
         }
     }
 }
