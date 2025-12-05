@@ -1,61 +1,114 @@
-﻿using System;
+﻿using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using System;
+
 
 public static class WavUtility
 {
-    public static byte[] FromAudioClip(AudioClip clip) {
-        using (MemoryStream stream = new MemoryStream()) {
-            // Reserve space for header
-            int headerSize = 44;
-            stream.Position = headerSize;
+    const int HEADER_SIZE = 44;
 
-            float[] samples = new float[clip.samples * clip.channels];
-            clip.GetData(samples, 0);
+    private static FileStream CreateEmpty(string filePath) {
+        FileStream fileStream = new FileStream(filePath, FileMode.Create);
+        byte emptyByte = new byte();
+        for (int i = 0; i < HEADER_SIZE; i++) {
+            fileStream.WriteByte(emptyByte);
+        }
+        return fileStream;
+    }
 
-            short[] intData = new short[samples.Length];
-            byte[] bytesData = new byte[samples.Length * 2];
-            float rescaleFactor = 32767; // float [-1,1] -> short
+    public static void Save(string filePath, AudioClip clip) {
+        if (!filePath.ToLower().EndsWith(".wav")) {
+            filePath += ".wav";
+        }
 
-            for (int i = 0; i < samples.Length; i++) {
-                intData[i] = (short)(samples[i] * rescaleFactor);
-                byte[] byteArr = BitConverter.GetBytes(intData[i]);
-                byteArr.CopyTo(bytesData, i * 2);
-            }
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 
-            stream.Write(bytesData, 0, bytesData.Length);
-
-            // Write WAV header
-            stream.Position = 0;
-            byte[] header = WriteWavHeader(clip, bytesData.Length);
-            stream.Write(header, 0, header.Length);
-
-            return stream.ToArray();
+        using (FileStream fileStream = CreateEmpty(filePath)) {
+            ConvertAndWrite(fileStream, clip);
+            WriteHeader(fileStream, clip);
         }
     }
 
-    private static byte[] WriteWavHeader(AudioClip clip, int dataLength) {
-        MemoryStream header = new MemoryStream();
-        BinaryWriter writer = new BinaryWriter(header);
+    private static void ConvertAndWrite(FileStream fileStream, AudioClip clip) {
+        float[] samples = new float[clip.samples];
 
-        int hz = clip.frequency;
-        short channels = (short)clip.channels;
+        clip.GetData(samples, 0);
 
-        writer.Write(System.Text.Encoding.ASCII.GetBytes("RIFF"));
-        writer.Write(36 + dataLength);
-        writer.Write(System.Text.Encoding.ASCII.GetBytes("WAVE"));
-        writer.Write(System.Text.Encoding.ASCII.GetBytes("fmt "));
-        writer.Write(16);
-        writer.Write((short)1); // PCM
-        writer.Write(channels);
-        writer.Write(hz);
-        writer.Write(hz * channels * 2); // byte rate
-        writer.Write((short)(channels * 2)); // block align
-        writer.Write((short)16); // bits per sample
-        writer.Write(System.Text.Encoding.ASCII.GetBytes("data"));
-        writer.Write(dataLength);
+        Int16[] intData = new Int16[samples.Length];
+        Byte[] bytesData = new Byte[samples.Length * 2];
 
-        writer.Flush();
-        return header.ToArray();
+        const float rescaleFactor = 32767;
+        for (int i = 0; i < samples.Length; i++) {
+            intData[i] = (short)(samples[i] * rescaleFactor);
+            Byte[] byteArr = new Byte[2];
+            byteArr = BitConverter.GetBytes(intData[i]);
+            byteArr.CopyTo(bytesData, i * 2);
+        }
+
+        fileStream.Write(bytesData, 0, bytesData.Length);
     }
+
+    private static void WriteHeader(FileStream fileStream, AudioClip clip) {
+        int hz = clip.frequency;
+        int channels = clip.channels;
+        int samples = clip.samples;
+
+        fileStream.Seek(0, SeekOrigin.Begin);
+
+        Byte[] riff = System.Text.Encoding.UTF8.GetBytes("RIFF");
+        fileStream.Write(riff, 0, 4);
+
+        Byte[] chunkSize = BitConverter.GetBytes(fileStream.Length - 8);
+        fileStream.Write(chunkSize, 0, 4);
+
+        Byte[] wave = System.Text.Encoding.UTF8.GetBytes("WAVE");
+        fileStream.Write(wave, 0, 4);
+
+        Byte[] fmt = System.Text.Encoding.UTF8.GetBytes("fmt ");
+        fileStream.Write(fmt, 0, 4);
+
+        Byte[] subChunk1 = BitConverter.GetBytes(16);
+        fileStream.Write(subChunk1, 0, 4);
+
+        UInt16 one = 1;
+
+        Byte[] audioFormat = BitConverter.GetBytes(one);
+        fileStream.Write(audioFormat, 0, 2);
+
+        Byte[] numChannels = BitConverter.GetBytes(channels);
+        fileStream.Write(numChannels, 0, 2);
+
+        Byte[] sampleRate = BitConverter.GetBytes(hz);
+        fileStream.Write(sampleRate, 0, 4);
+
+        Byte[] byteRate = BitConverter.GetBytes(hz * channels * 2);
+        fileStream.Write(byteRate, 0, 4);
+
+        UInt16 blockAlign = (ushort)(channels * 2);
+        fileStream.Write(BitConverter.GetBytes(blockAlign), 0, 2);
+
+        UInt16 bps = 16;
+        Byte[] bitsPerSample = BitConverter.GetBytes(bps);
+        fileStream.Write(bitsPerSample, 0, 2);
+
+        Byte[] datastring = System.Text.Encoding.UTF8.GetBytes("data");
+        fileStream.Write(datastring, 0, 4);
+
+        Byte[] subChunk2 = BitConverter.GetBytes(samples * channels * 2);
+        fileStream.Write(subChunk2, 0, 4);
+
+    }
+
+    public static string GetAudioBase64(string filePath) {
+        if (!File.Exists(filePath)) {
+            Debug.LogError("Audio file not found: " + filePath);
+            return null;
+        }
+
+        byte[] audioBytes = File.ReadAllBytes(filePath);
+        return Convert.ToBase64String(audioBytes);
+    }
+
 }

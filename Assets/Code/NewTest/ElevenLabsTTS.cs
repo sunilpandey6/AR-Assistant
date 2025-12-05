@@ -1,84 +1,79 @@
-﻿using System;
-using System.IO;
+﻿using System.Collections;
 using System.Text;
-using System.Collections;
 using UnityEngine;
 using UnityEngine.Networking;
-using System.Diagnostics;
 using ReadyPlayerMe.Core;
 
 public class ElevenLabsTTS : MonoBehaviour
 {
-    [Header("ElevenLabs Settings")]
-    [SerializeField] public string apiKey;
-    [SerializeField] public string voiceId;
-    public string modelId = "eleven_multilingual_v2";
-
-    //[Header("Unity Components")]
-    //[SerializeField] public AudioSource audioSource;
+    [Header("API Configuration")]
+    [SerializeField] private string apiKey = "YOUR_API_KEY";
+    [SerializeField] private string voiceId = "JBFqnCBsd6RMkjVDRZzb"; // Default from your example
+    [SerializeField] private string modelId = "eleven_multilingual_v2"; // Matches your curl
 
     [Header("Avatar Components")]
-    [SerializeField] private ReadyPlayerMe.Core.VoiceHandler voiceHandler;
-
+    [SerializeField] private VoiceHandler voiceHandler;
 
     private const string apiUrl = "https://api.elevenlabs.io/v1/text-to-speech/";
+
+    // 1. Structure matches your curl JSON body exactly
+    [System.Serializable]
+    private class ElevenLabsRequest
+    {
+        public string text;
+        public string model_id;
+    }
 
     public void Speak(string text) {
         StartCoroutine(RequestSpeech(text));
     }
 
     private IEnumerator RequestSpeech(string text) {
+        // 2. URL matches your curl params
         string url = $"{apiUrl}{voiceId}?output_format=mp3_44100_128";
 
-        var body = new {
+        // 3. Prepare JSON Body
+        ElevenLabsRequest requestData = new ElevenLabsRequest {
             text = text,
             model_id = modelId
         };
 
-        string jsonBody = JsonUtility.ToJson(body);
+        string jsonBody = JsonUtility.ToJson(requestData);
         byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
 
-        UnityWebRequest request = new UnityWebRequest(url, "POST");
-        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-        request.downloadHandler = new DownloadHandlerBuffer();
+        // 4. Construct Request (Manually to ensure raw JSON body)
+        using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
+            // Attach Body
+            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
 
-        request.SetRequestHeader("xi-api-key", apiKey);
-        request.SetRequestHeader("Content-Type", "application/json");
+            // Attach Download Handler (Stream directly to AudioClip, skip disk saving)
+            // Important: We force AudioType.MPEG because the URL lacks .mp3 extension
+            request.downloadHandler = new DownloadHandlerAudioClip(url, AudioType.MPEG);
 
-        UnityEngine.Debug.Log("Sending TTS request...");
-        yield return request.SendWebRequest();
+            // 5. Headers match your curl -H flags
+            request.SetRequestHeader("xi-api-key", apiKey);
+            request.SetRequestHeader("Content-Type", "application/json");
 
-        if (request.result != UnityWebRequest.Result.Success) {
-            UnityEngine.Debug.LogError("TTS Error: " + request.error);
-            yield break;
-        }
+            UnityEngine.Debug.Log($"Sending TTS Request to: {url}");
+            yield return request.SendWebRequest();
 
-        byte[] audioData = request.downloadHandler.data;
-        UnityEngine.Debug.Log("Received audio bytes: " + audioData.Length);
+            if (request.result != UnityWebRequest.Result.Success) {
+                UnityEngine.Debug.LogError($"TTS Error: {request.error}");
+                // Note: If this fails, DownloadHandlerAudioClip might not contain the text error.
+                // You usually check headers here, but typically 401/400 is the issue.
+            } else {
+                // 6. Get content directly from memory
+                AudioClip clip = DownloadHandlerAudioClip.GetContent(request);
 
-        string tempPath = Path.Combine(Application.temporaryCachePath, "temp.mp3");
-        File.WriteAllBytes(tempPath, audioData);
-
-        using (UnityWebRequest audioRequest = UnityWebRequestMultimedia.GetAudioClip("file:///" + tempPath, AudioType.MPEG)) {
-            yield return audioRequest.SendWebRequest();
-
-            if (audioRequest.result != UnityWebRequest.Result.Success) {
-                UnityEngine.Debug.LogError("Failed to load audio: " + audioRequest.error);
-                yield break;
+                if (clip != null && voiceHandler != null) {
+                    // RPM expects the provider to be set to AudioClip
+                    voiceHandler.AudioProvider = AudioProviderType.AudioClip;
+                    voiceHandler.PlayAudioClip(clip);
+                    UnityEngine.Debug.Log("TTS playing successfully.");
+                } else {
+                    UnityEngine.Debug.LogError("Downloaded data could not be converted to AudioClip.");
+                }
             }
-
-            AudioClip clip = DownloadHandlerAudioClip.GetContent(audioRequest);
-            //audioSource.clip = clip;
-            //audioSource.Play();
-            if (voiceHandler != null) {
-                voiceHandler.AudioProvider = AudioProviderType.AudioClip;
-                voiceHandler.PlayAudioClip(clip);
-            }
-
-            UnityEngine.Debug.Log("Playing speech!");
         }
-
-        // Optionally delete the temporary file
-        File.Delete(tempPath);
     }
 }

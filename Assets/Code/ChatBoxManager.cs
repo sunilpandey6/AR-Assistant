@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using UnityEngine.Networking;
 using System.Collections;
 using System.Collections.Generic;
+using System;
 
 
 
@@ -20,6 +21,9 @@ public class ChatBoxManager : MonoBehaviour
     [SerializeField] private string n8nUrl = "http://localhost:5678/webhook/unity-ai";
     public AvatarAnimatorControl animatorControl;
 
+    [SerializeField] public ElevenLabsTTS elevenLabsTTS;
+    [SerializeField] public GeminiTTS geminiTTS;
+
     void Start() {
         sendButton.onClick.AddListener(OnSendMessageTxt);
     }
@@ -34,7 +38,6 @@ public class ChatBoxManager : MonoBehaviour
         var payload = new N8nRequest {
             sessionId = "1001",
             message = userMessage,
-            messageType = "text",
             voice = TaskBarControl.isVoice
         };
         
@@ -81,11 +84,14 @@ public class ChatBoxManager : MonoBehaviour
                 try {
                     N8nResponse response = JsonUtility.FromJson<N8nResponse>(responseJson);
 
-                    if (response != null && response.role == "user" &&!string.IsNullOrEmpty(response.output)) {
-                        AddMessage(response.output, true);
-                    } 
-                    else if (response != null && response.role == "agent" && !string.IsNullOrEmpty(response.output)) {
-                        AddMessage(response.output, false); 
+                    if (response != null && TaskBarControl.isVoice) {
+                        //play voice message
+                        AddMessage(response.output, false);
+                        //elevenLabsTTS.Speak(response.voice);
+                        geminiTTS.Speak(response.voice);
+                    }
+                    else if (response != null && !string.IsNullOrEmpty(response.output)) {
+                        AddMessage(response.output, false);
                     }
                     else {
                         // Fallback: show raw text if JSON doesn't parse cleanly
@@ -107,7 +113,6 @@ public class N8nRequest
 {
     public string sessionId;
     public string message;
-    public string messageType;
     public bool voice;
 }
 
@@ -115,7 +120,7 @@ public class N8nRequest
 [System.Serializable]
 public class N8nResponse
 {
-    public string role;
     public string output;
+    public string voice;
 }
 

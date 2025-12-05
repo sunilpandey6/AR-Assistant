@@ -12,6 +12,7 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
+using System.IO;
 
 public class TaskBarControl : MonoBehaviour
 {
@@ -63,10 +64,7 @@ public class TaskBarControl : MonoBehaviour
     
 
     [Header("Voice Recording Settings")]
-    [SerializeField] private int sampleRate = 44100;
-
-    public AudioClip recording;
-    private bool isRecording = false;
+    [SerializeField] private RecordAudio recordAudio;
 
     // Display panel in top of task bar
     void ShowPanelInTop(GameObject panel) {
@@ -105,10 +103,10 @@ public class TaskBarControl : MonoBehaviour
         panelUI.SetActive(false);
         settingPanel.SetActive(false);
         // taskbar
-        setting.onClick.AddListener(OnClickSetting);
-        showApp.onClick.AddListener(OnClickAppList);
-        showAvatar.onClick.AddListener(OnCLickShowAvatar);
-        showChat.onClick.AddListener(() => OnClickShowChatUI(panelUI));
+        // setting.onClick.AddListener(OnClickSetting);
+        // showApp.onClick.AddListener(OnClickAppList);
+        // showAvatar.onClick.AddListener(OnCLickShowAvatar);  
+        // showChat.onClick.AddListener(() => OnClickShowChatUI(panelUI));
         //voice Button
         //voice.onClick.AddListener(OnPointerDown);
         var eventTrigger = voice.gameObject.AddComponent<EventTrigger>();
@@ -146,7 +144,7 @@ public class TaskBarControl : MonoBehaviour
         }
     }
     #region Setting
-    private void OnClickSetting() {
+    public void OnClickSetting() {
         if (settingPanel.activeSelf) {
             ToggleClose(settingPanel);
             return;
@@ -165,7 +163,7 @@ public class TaskBarControl : MonoBehaviour
 
     #region AppList Button
     // when Applist button is pressed
-    void OnClickAppList() {
+    public void OnClickAppList() {
         if (!connectionDone) {
             ShowPanelInTop(connectionPanel);
             return;
@@ -219,7 +217,7 @@ public class TaskBarControl : MonoBehaviour
     #endregion
 
     #region Avatar Load
-    void OnCLickShowAvatar() {
+    public void OnCLickShowAvatar() {
         // load the avatar at left of the task bar
         if (avatar != null && taskbar != null ) {
             //toogle avatar visibility
@@ -240,46 +238,24 @@ public class TaskBarControl : MonoBehaviour
     #endregion
 
     #region Voice control
-    private void StartRecording() {
-        if (isRecording) return;
+    public void StartRecording() {
         animatorControl.PlayNod();
-        isRecording = true;
-        Debug.Log("Voice recording started...");
-
-        recording = Microphone.Start(null, false, 180, sampleRate); // max 3 min
+        recordAudio.StartRecording();
     }
 
-    private void StopRecording() {
-        if (!isRecording) return;
+    public void StopRecording() {
+        recordAudio.StopRecording((result) => {
+            animatorControl.PlayNod();
+            chatBoxManager.AddMessage(result, true);
+            var payload = new N8nRequest {
+                sessionId = "1001",
+                message = result,
+                voice = TaskBarControl.isVoice
+            };
+            chatBoxManager.SendToN8N(payload);
 
-        isRecording = false;
-        Microphone.End(null);
-        Debug.Log("Voice recording stopped.");
-
-        if (recording != null)
-            OnSendAudioMessage(recording);
+        });
     }
-
-    void OnSendAudioMessage(AudioClip clip) {
-        // Convert AudioClip to WAV bytes
-        byte[] wavBytes = WavUtility.FromAudioClip(clip);
-
-        // Convert to Base64 string before sending.
-        string base64Audio = Convert.ToBase64String(wavBytes);
-
-        chatBoxManager.AddMessage("[Voice message]", true);
-
-        var payload = new N8nRequest {
-            sessionId = "1001",
-            message = base64Audio,
-            messageType = "audio",
-            voice = isVoice
-        };
-
-        StartCoroutine(chatBoxManager.SendToN8N(payload));
-    }
-
-
     #endregion
 
     #region Chat
@@ -292,7 +268,7 @@ public class TaskBarControl : MonoBehaviour
         panelToShow.transform.rotation = basePanel.transform.rotation * Quaternion.Euler(0f,rotatepanel,0f);
     }
 
-    void OnClickShowChatUI(GameObject panel) {
+    public void OnClickShowChatUI(GameObject panel) {
         if (panel == null) return;
         bool newState = !panel.activeSelf;
         if (!newState) {
@@ -311,5 +287,18 @@ public class TaskBarControl : MonoBehaviour
     }
 
     #endregion
+
+    public void CheckTTS() {
+        string path = Path.Combine(Application.dataPath, "My_res/Test scene/Dominic - British, Dark, Brooding, Intense_cNl7zmADcPo3qlH6Sl5o.wav");
+        recordAudio.SendExistingAudioFile(path, (transcription) =>
+        {
+            if (!string.IsNullOrEmpty(transcription)) {
+                Debug.Log("Transcription received: " + transcription);
+                // You can also store it in a variable or display it in UI
+            } else {
+                Debug.LogError("Failed to get transcription.");
+            }
+        });
+    }
 
 }
