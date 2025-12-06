@@ -5,67 +5,65 @@ using UnityEngine.UI;
 public class MenuController : MonoBehaviour
 {
     [Header("Task Bar")]
-    [SerializeField] protected OVRCameraRig ovrRig;
-    [SerializeField] protected GameObject panelPrefab;
-    [SerializeField] protected float panelDistance;
-    [SerializeField] protected float distanceY;
-    [SerializeField] protected float ttl = 60f;
-    private float idleTimer = 0f;
+    [SerializeField] private OVRCameraRig ovrRig;
+    [SerializeField] private GameObject panelPrefab;
+    [SerializeField] private float panelDistance = 1.5f;
+    [SerializeField] private float distanceY = -0.2f;
+    [SerializeField] private float ttl = 60f;
 
-    CanvasGroup cg;
+    private float idleTimer = 0f;
+    private CanvasGroup cg;
 
     private void Start() {
         panelPrefab.SetActive(true);
-       StartCoroutine(ShowPanelWithDelay());
-        //cg = panelPrefab.GetComponent<CanvasGroup>();
+        cg = panelPrefab.GetComponent<CanvasGroup>();
+        StartCoroutine(ShowPanelWithDelay());
     }
 
     private IEnumerator ShowPanelWithDelay() {
-        float waitTime = Random.Range(5f, 8f);
-        yield return new WaitForSeconds(waitTime);
-
+        yield return new WaitForSeconds(Random.Range(5f, 8f));
         ShowPanel();
     }
 
-
-    protected void Update() {
+    private void Update() {
         if (OVRInput.GetDown(OVRInput.Button.Start)) {
             Debug.Log("Start button pressed! Showing panel.");
             ShowPanel();
-        } 
-        else 
-        {
-            if (panelPrefab.activeSelf) {
+        } else {
+            if (cg.alpha > 0f) // panel visible
+            {
                 idleTimer += Time.deltaTime;
+
                 if (idleTimer >= ttl) {
                     Debug.Log("TTL expired. Hiding panel.");
                     HidePanel();
                     idleTimer = 0f;
-                } 
-                else {
-                    Debug.Log("Panel is inactive, waiting for input.");
                 }
             }
         }
     }
 
     public void ShowPanel() {
-        
         Transform cam = ovrRig.centerEyeAnchor;
+
         Vector3 spawnPos = cam.position + cam.forward * panelDistance;
         spawnPos.y = cam.position.y + distanceY;
-        Quaternion spawnRot = Quaternion.LookRotation(cam.forward, cam.up);
-        panelPrefab.transform.SetPositionAndRotation(spawnPos, spawnRot);
-        idleTimer = 0f; // reset TTL timer while user is pointing
 
-        //cg.alpha = 1f;        // visible
-        //cg.interactable = true;
-        //cg.blocksRaycasts = true;
+        panelPrefab.transform.SetPositionAndRotation(
+            spawnPos,
+            Quaternion.LookRotation(cam.forward, cam.up)
+        );
+
+        idleTimer = 0f;
+
+        cg.alpha = 1f;
+        cg.interactable = true;
+        cg.blocksRaycasts = true;
     }
 
-    protected void HidePanel() {
-        cg.alpha = 0f;        // invisible
+    private void HidePanel() {
+        cg.alpha = 0f;
         cg.interactable = false;
-        cg.blocksRaycasts = false;  // important so it doesn’t block raycasts
+        cg.blocksRaycasts = false;
     }
 }

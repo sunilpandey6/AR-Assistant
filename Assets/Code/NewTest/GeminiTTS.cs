@@ -8,14 +8,18 @@ using ReadyPlayerMe.Core;
 public class GeminiTTS : MonoBehaviour
 {
     [Header("Gemini Settings")]
-    [SerializeField] private string apiKey = "YOUR_GEMINI_API_KEY";
+    private string apiKey;
     [SerializeField] private string model = "gemini-2.5-flash-preview-tts";
     [SerializeField] private string voiceName = "Schedar";
 
     [Header("Avatar Components")]
-    [SerializeField] private VoiceHandler voiceHandler;
+    [SerializeField] private AudioSource voiceSource;
 
     private const string ApiUrl = "https://generativelanguage.googleapis.com/v1beta/models/";
+
+    private void Start() {
+        apiKey = Keys.LoadGemini();
+    }
 
     // --- JSON WRAPPERS ---
     // These classes map strictly to the Gemini API JSON structure
@@ -150,10 +154,10 @@ public class GeminiTTS : MonoBehaviour
             // Gemini sends 24kHz, 16-bit PCM, Mono
             AudioClip clip = CreateClipFromPCM(audioBytes);
 
-            if (clip != null && voiceHandler != null) {
+            if (clip != null && voiceSource != null) {
                 clip.name = "Gemini_Audio";
-                voiceHandler.AudioProvider = AudioProviderType.AudioClip;
-                voiceHandler.PlayAudioClip(clip);
+                voiceSource.clip = clip;
+                voiceSource.Play();
                 UnityEngine.Debug.Log("Playing Gemini Audio!");
             }
         }

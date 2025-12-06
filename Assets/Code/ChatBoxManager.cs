@@ -21,8 +21,8 @@ public class ChatBoxManager : MonoBehaviour
     [SerializeField] private string n8nUrl = "http://localhost:5678/webhook/unity-ai";
     public AvatarAnimatorControl animatorControl;
 
-    [SerializeField] public ElevenLabsTTS elevenLabsTTS;
-    [SerializeField] public GeminiTTS geminiTTS;
+    [SerializeField] private ElevenLabsTTS elevenLabsTTS;
+    [SerializeField] private GeminiTTS geminiTTS;
 
     void Start() {
         sendButton.onClick.AddListener(OnSendMessageTxt);
@@ -41,9 +41,7 @@ public class ChatBoxManager : MonoBehaviour
             voice = TaskBarControl.isVoice
         };
         
-        SendToN8N(payload);
-        
-
+        StartCoroutine(SendToN8N(payload));
     }
 
     public void AddMessage(string message, bool isUser) {

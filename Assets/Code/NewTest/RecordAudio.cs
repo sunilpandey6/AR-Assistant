@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Security;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -9,7 +10,7 @@ public class RecordAudio : MonoBehaviour
 {
     [Header("Gemini Settings")]
     [Tooltip("Get an API key from https://aistudio.google.com/")]
-    [SerializeField] private string GEMINI_API_KEY = "YOUR_API_KEY_HERE";
+    private string GEMINI_API_KEY;
     [SerializeField] private string modelName = "gemini-1.5-flash";
 
     private AudioClip recordedClip;
@@ -76,6 +77,9 @@ public class RecordAudio : MonoBehaviour
         tempFilePath = Path.Combine(Application.temporaryCachePath, "recording.wav");
     }
 
+    private void Start() {
+        GEMINI_API_KEY = Keys.LoadGemini();
+    }
     public void StartRecording() {
         if (Microphone.devices.Length == 0) {
             Debug.LogError("No microphone found!");

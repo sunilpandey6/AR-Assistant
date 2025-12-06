@@ -7,12 +7,12 @@ using ReadyPlayerMe.Core;
 public class ElevenLabsTTS : MonoBehaviour
 {
     [Header("API Configuration")]
-    [SerializeField] private string apiKey = "YOUR_API_KEY";
+    [SerializeField] private string apiKey;
     [SerializeField] private string voiceId = "JBFqnCBsd6RMkjVDRZzb"; // Default from your example
     [SerializeField] private string modelId = "eleven_multilingual_v2"; // Matches your curl
 
     [Header("Avatar Components")]
-    [SerializeField] private VoiceHandler voiceHandler;
+    [SerializeField] private AudioSource voiceSource;
 
     private const string apiUrl = "https://api.elevenlabs.io/v1/text-to-speech/";
 
@@ -24,6 +24,9 @@ public class ElevenLabsTTS : MonoBehaviour
         public string model_id;
     }
 
+    private void Start() {
+        apiKey = Keys.LoadEleven();
+    }
     public void Speak(string text) {
         StartCoroutine(RequestSpeech(text));
     }
@@ -33,7 +36,7 @@ public class ElevenLabsTTS : MonoBehaviour
         string url = $"{apiUrl}{voiceId}?output_format=mp3_44100_128";
 
         // 3. Prepare JSON Body
-        ElevenLabsRequest requestData = new ElevenLabsRequest {
+        var requestData = new ElevenLabsRequest {
             text = text,
             model_id = modelId
         };
@@ -42,7 +45,7 @@ public class ElevenLabsTTS : MonoBehaviour
         byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
 
         // 4. Construct Request (Manually to ensure raw JSON body)
-        using (UnityWebRequest request = new UnityWebRequest(url, "POST")) {
+        using (var request = new UnityWebRequest(url, "POST")) {
             // Attach Body
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
 
@@ -65,10 +68,10 @@ public class ElevenLabsTTS : MonoBehaviour
                 // 6. Get content directly from memory
                 AudioClip clip = DownloadHandlerAudioClip.GetContent(request);
 
-                if (clip != null && voiceHandler != null) {
+                if (clip != null && voiceSource != null) {
                     // RPM expects the provider to be set to AudioClip
-                    voiceHandler.AudioProvider = AudioProviderType.AudioClip;
-                    voiceHandler.PlayAudioClip(clip);
+                    voiceSource.clip = clip;
+                    voiceSource.Play();
                     UnityEngine.Debug.Log("TTS playing successfully.");
                 } else {
                     UnityEngine.Debug.LogError("Downloaded data could not be converted to AudioClip.");

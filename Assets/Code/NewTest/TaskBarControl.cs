@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
 using System.IO;
+using ReadyPlayerMe.Core;
 
 public class TaskBarControl : MonoBehaviour
 {
@@ -32,12 +33,12 @@ public class TaskBarControl : MonoBehaviour
     public static bool isVoice = false;
 
     [Header("Connection Panel")]
-    [SerializeField] public GameObject connectionPanel;
-    [SerializeField] public TMP_InputField IPInput;
-    [SerializeField] public Button submitButton;
-    [SerializeField] public TextMeshProUGUI status;
+    public GameObject connectionPanel;
+    public TMP_InputField IPInput;
+    public Button submitButton;
+    public TextMeshProUGUI status;
     [SerializeField] private bool connectionDone = false;
-    [SerializeField] public string serverIP;
+    public string serverIP;
     [SerializeField] private int port = 5000;
 
     [Header("App List Loader")]
@@ -65,21 +66,23 @@ public class TaskBarControl : MonoBehaviour
 
     [Header("Voice Recording Settings")]
     [SerializeField] private RecordAudio recordAudio;
+    [SerializeField] private AudioSource voiceSource;
 
     // Display panel in top of task bar
     void ShowPanelInTop(GameObject panel) {
         if (panel == null || taskbar == null) return;
 
-        Vector3 pos = taskbar.position;
-        pos.y += topOffset;
-        panel.transform.position = pos;
-        panel.transform.rotation = taskbar.rotation;
+        Vector3 pos = taskbar.position + Vector3.up * topOffset;
+        Quaternion rot = taskbar.rotation;
+
+        panel.transform.SetPositionAndRotation(pos, rot);
 
         panel.SetActive(true);
     }
- 
+
+
     //Toogle Panel to hide
-    void ToggleClose(GameObject panel) {
+    public void ToggleClose(GameObject panel) {
         if(panel == null) return;
         bool isActive = panel.activeSelf;
 
@@ -99,7 +102,8 @@ public class TaskBarControl : MonoBehaviour
     private void Start() {
         connectionPanel.SetActive(false);
         appListPanel.SetActive(false);
-        avatar.SetActive(false);
+        avatar.SetActive(true);
+        PlayAudio();
         panelUI.SetActive(false);
         settingPanel.SetActive(false);
         // taskbar
@@ -123,7 +127,7 @@ public class TaskBarControl : MonoBehaviour
         // connectionPanel
         submitButton.onClick.AddListener(OnConnectClick);
         // AppListPanel
-        closeAppList.onClick.AddListener(() => ToggleClose(appListPanel));      
+        closeAppList.onClick.AddListener(() => ToggleClose(appListPanel));
     }
 
     void Update() {
@@ -231,7 +235,8 @@ public class TaskBarControl : MonoBehaviour
             pos -= taskbar.up * yOffset;
 
             avatar.transform.position = pos;
-            avatar.transform.rotation = taskbar.rotation * Quaternion.Euler(0f, avaRotate, 0f);
+            Quaternion rot = taskbar.rotation * Quaternion.Euler(0f, avaRotate, 0f);
+            avatar.transform.SetPositionAndRotation(pos, rot);
             animatorControl.anim.Play("Wave", 0, 0f);
         }
     }
@@ -252,8 +257,7 @@ public class TaskBarControl : MonoBehaviour
                 message = result,
                 voice = TaskBarControl.isVoice
             };
-            chatBoxManager.SendToN8N(payload);
-
+            StartCoroutine(chatBoxManager.SendToN8N(payload));
         });
     }
     #endregion
@@ -261,12 +265,12 @@ public class TaskBarControl : MonoBehaviour
     #region Chat
 
     void ShowPanelRightOf(GameObject basePanel, GameObject panelToShow) {
-        Vector3 pos = basePanel.transform.position;
-        pos += taskbar.right * horizontalSpacing; // move right based on taskbar orientation
+        Vector3 pos = basePanel.transform.position + taskbar.right * horizontalSpacing;
+        Quaternion rot = basePanel.transform.rotation * Quaternion.Euler(0f, rotatepanel, 0f);
 
-        panelToShow.transform.position = pos;
-        panelToShow.transform.rotation = basePanel.transform.rotation * Quaternion.Euler(0f,rotatepanel,0f);
+        panelToShow.transform.SetPositionAndRotation(pos, rot);
     }
+
 
     public void OnClickShowChatUI(GameObject panel) {
         if (panel == null) return;
@@ -299,6 +303,16 @@ public class TaskBarControl : MonoBehaviour
                 Debug.LogError("Failed to get transcription.");
             }
         });
+    }
+
+    public void PlayAudio() {
+   
+        AudioClip clip = Resources.Load<AudioClip>("Audio/Dominic - British, Dark, Brooding, Intense_cNl7zmADcPo3qlH6Sl5o");
+        if (clip == null) { Debug.LogError("Error audio not found"); }
+        voiceSource.clip = clip;
+        voiceSource.Play();
+        Debug.Log("playing");
+
     }
 
 }

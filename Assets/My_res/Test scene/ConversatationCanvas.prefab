@@ -1131,6 +1131,7 @@ GameObject:
   - component: {fileID: 8420304647017202004}
   - component: {fileID: 195235592990229444}
   - component: {fileID: 7221781599417815912}
+  - component: {fileID: 4020989970851139691}
   m_Layer: 5
   m_Name: UserInput
   m_TagString: Untagged
@@ -1297,6 +1298,19 @@ MonoBehaviour:
   isAlert: 0
   m_InputValidator: {fileID: 0}
   m_ShouldActivateOnSelect: 1
+--- !u!114 &4020989970851139691
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6258076312384228820}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb623c314fd69ef4b9c55ca02bbbb57b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  inputField: {fileID: 0}
 --- !u!1 &6948972154052700439
 GameObject:
   m_ObjectHideFlags: 0
@@ -1725,7 +1739,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -537.5, y: 306.62494}
+  m_AnchoredPosition: {x: -537.5, y: 306.62497}
   m_SizeDelta: {x: 20, y: 0}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &2443474132045643978
