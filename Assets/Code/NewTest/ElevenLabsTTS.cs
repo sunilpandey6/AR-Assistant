@@ -6,7 +6,7 @@ using UnityEngine.Networking;
 public class ElevenLabsTTS : MonoBehaviour
 {
     [Header("API Configuration")]
-    [SerializeField] private string apiKey;
+    private string apiKey;
     [SerializeField] private string voiceId = "JBFqnCBsd6RMkjVDRZzb"; // Default from your example
     [SerializeField] private string modelId = "eleven_multilingual_v2"; // Matches your curl
 
