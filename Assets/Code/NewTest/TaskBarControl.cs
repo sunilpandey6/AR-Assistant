@@ -208,8 +208,6 @@ public class TaskBarControl : MonoBehaviour
             ToggleClose(connectionPanel);
             connectionDone = true;
             ShowPanelInTop(appListPanel);
-            appListLoader.DisplayAppList(serverIP);
-
         } else {
             status.text = $"Connection failed: {req.error}";
         }

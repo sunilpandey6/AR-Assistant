@@ -59,7 +59,7 @@ public class GeminiTTS : MonoBehaviour
 
         byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
 
-        using (UnityWebRequest request = new UnityWebRequest(apiUrl, "POST")) {
+        using (UnityWebRequest request = new (apiUrl, "POST")) {
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
             request.downloadHandler = new DownloadHandlerBuffer();
             request.SetRequestHeader("Content-Type", "application/json");
