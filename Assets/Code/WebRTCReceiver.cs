@@ -1,140 +1,205 @@
 ﻿using UnityEngine;
-using Unity.WebRTC;
 using System;
 using System.Collections;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 public class WebRTCReceiver : MonoBehaviour
 {
-    private RTCPeerConnection peerConnection;
-    private VideoStreamTrack videoTrack;
-    private Renderer videoRenderer;
+    private ClientWebSocket webSocket;
+    private CancellationTokenSource cancellationToken;
     private string serverIP;
     private string appId;
-    private ClientWebSocket ws;
+    private MeshRenderer videoSurface;
+    private Texture2D videoTexture;
 
-    public void Init(string ip, string appId, Renderer renderer) {
-        this.serverIP = ip;
+    private bool isReceivingFrames = false;
+
+    // For H.264 decoding (you'll need a decoder library)
+    // private H264Decoder decoder; // Add your decoder here
+
+    public void Init(string serverIP, string appId, MeshRenderer surface) {
+        this.serverIP = serverIP;
         this.appId = appId;
-        this.videoRenderer = renderer;
+        this.videoSurface = surface;
 
-        StartCoroutine(SetupConnection());
+        // Create initial texture
+        videoTexture = new Texture2D(1920, 1080, TextureFormat.RGB24, false);
+        videoSurface.material.mainTexture = videoTexture;
+
+        StartCoroutine(ConnectWebSocket());
     }
 
-    private IEnumerator SetupConnection() {
-        // 1️⃣ Create peer connection
-        var config = new RTCConfiguration {
-            iceServers = new[] { new RTCIceServer { urls = new[] { "stun:stun.l.google.com:19302" } } }
-        };
-        peerConnection = new RTCPeerConnection(ref config);
+    private IEnumerator ConnectWebSocket() {
+        webSocket = new ClientWebSocket();
+        cancellationToken = new CancellationTokenSource();
 
-        // 2️⃣ Handle incoming video tracks
-        peerConnection.OnTrack = e => {
-            if (e.Track is VideoStreamTrack track) {
-                videoTrack = track;
-                track.OnVideoReceived += tex => {
-                    UnityMainThreadDispatcher.Instance().Enqueue(() => {
-                        if (videoRenderer != null)
-                            videoRenderer.material.mainTexture = tex;
-                    });
-                };
-            }
-        };
+        string wsUrl = $"ws://{serverIP}:5000";
+        Debug.Log($"Connecting to WebSocket: {wsUrl}");
 
-        // 3️⃣ Connect to signaling server
-        yield return StartCoroutine(ConnectToSignaling());
-    }
+        Task connectTask = webSocket.ConnectAsync(new Uri(wsUrl), cancellationToken.Token);
 
-    private IEnumerator ConnectToSignaling() {
-        ws = new ClientWebSocket();
-        var uri = new Uri($"ws://{serverIP}:5000/signaling");
-        var connectTask = ws.ConnectAsync(uri, CancellationToken.None);
-        while (!connectTask.IsCompleted) yield return null;
-
-        UnityEngine.Debug.Log($"✅ Connected to signaling server for {appId}");
-
-        // Send "ready" message
-        string readyMsg = $"{{\"type\":\"ready\",\"appId\":\"{appId}\"}}";
-        var sendBuffer = new ArraySegment<byte>(Encoding.UTF8.GetBytes(readyMsg));
-        var sendTask = ws.SendAsync(sendBuffer, WebSocketMessageType.Text, true, CancellationToken.None);
-        while (!sendTask.IsCompleted) yield return null;
-
-        // Start listening for messages
-        StartCoroutine(ReceiveSignalingMessages());
-    }
-
-    private IEnumerator ReceiveSignalingMessages() {
-        var buffer = new byte[4096];
-
-        while (ws.State == WebSocketState.Open) {
-            var resultTask = ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-            while (!resultTask.IsCompleted) yield return null;
-
-            var result = resultTask.Result;
-            string msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
-            HandleSignalingMessage(msg);
-
+        // Wait for connection
+        while (!connectTask.IsCompleted) {
             yield return null;
         }
-    }
 
-    private void HandleSignalingMessage(string msg) {
-        UnityEngine.Debug.Log($"📩 Received signaling: {msg}");
-        var json = JsonUtility.FromJson<SignalMsg>(msg);
+        if (webSocket.State == WebSocketState.Open) {
+            Debug.Log("✅ WebSocket connected!");
 
-        if (json.type == "offer") {
-            StartCoroutine(HandleOffer(json));
-        } else if (json.type == "ice") {
-            var candidate = new RTCIceCandidate(new RTCIceCandidateInit {
-                candidate = json.candidate,
-                sdpMid = json.sdpMid,
-                sdpMLineIndex = json.sdpMLineIndex
+            // Identify as Unity client
+            SendMessage(new {
+                role = "unity"
             });
-            peerConnection.AddIceCandidate(candidate);
+
+            // Request helper to start capturing this app
+            SendMessage(new {
+                to = "helper",
+                type = "start_capture",
+                appId = appId,
+                processId = int.Parse(appId) // Convert appId back to processId
+            });
+
+            // Start receiving messages
+            StartCoroutine(ReceiveMessages());
+        } else {
+            Debug.LogError($"Failed to connect WebSocket: {webSocket.State}");
         }
     }
 
-    private IEnumerator HandleOffer(SignalMsg json) {
-        // 1️⃣ Set remote description
-        var desc = new RTCSessionDescription {
-            type = RTCSdpType.Offer,
-            sdp = json.sdp
-        };
-        var setRemoteOp = peerConnection.SetRemoteDescription(ref desc);
-        yield return setRemoteOp;
+    private void SendMessage(object data) {
+        if (webSocket == null || webSocket.State != WebSocketState.Open) {
+            Debug.LogError("WebSocket not connected!");
+            return;
+        }
 
-        // 2️⃣ Create answer
-        var createAnswerOp = peerConnection.CreateAnswer();
-        yield return createAnswerOp;
+        string json = JsonUtility.ToJson(data);
+        byte[] bytes = Encoding.UTF8.GetBytes(json);
 
-        // 3️⃣ Copy Desc to a variable before using 'ref'
-        var localDesc = createAnswerOp.Desc;
-        var setLocalOp = peerConnection.SetLocalDescription(ref localDesc);
-        yield return setLocalOp;
-
-        // 4️⃣ Send answer back
-        string answerMsg = $"{{\"type\":\"answer\",\"sdp\":\"{localDesc.sdp}\",\"appId\":\"{appId}\"}}";
-        var sendBuffer = new ArraySegment<byte>(Encoding.UTF8.GetBytes(answerMsg));
-        var sendTask = ws.SendAsync(sendBuffer, WebSocketMessageType.Text, true, CancellationToken.None);
-        while (!sendTask.IsCompleted) yield return null;
+        Task sendTask = webSocket.SendAsync(
+            new ArraySegment<byte>(bytes),
+            WebSocketMessageType.Text,
+            true,
+            cancellationToken.Token
+        );
     }
 
+    private IEnumerator ReceiveMessages() {
+        byte[] buffer = new byte[1024 * 1024]; // 1MB buffer for frames
+
+        while (webSocket.State == WebSocketState.Open) {
+            ArraySegment<byte> segment = new ArraySegment<byte>(buffer);
+            Task<WebSocketReceiveResult> receiveTask = webSocket.ReceiveAsync(segment, cancellationToken.Token);
+
+            // Wait for message
+            while (!receiveTask.IsCompleted) {
+                yield return null;
+            }
+
+            WebSocketReceiveResult result = receiveTask.Result;
+
+            if (result.MessageType == WebSocketMessageType.Text) {
+                // Handle text messages (control/signaling)
+                string message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                HandleTextMessage(message);
+            } else if (result.MessageType == WebSocketMessageType.Binary) {
+                // Handle binary messages (video frames)
+                HandleBinaryFrame(buffer, result.Count);
+            } else if (result.MessageType == WebSocketMessageType.Close) {
+                Debug.Log("WebSocket closed by server");
+                break;
+            }
+        }
+    }
+
+    private void HandleTextMessage(string message) {
+        Debug.Log($"Received text message: {message}");
+
+        try {
+            // Parse JSON message
+            var data = JsonUtility.FromJson<WebSocketMessage>(message);
+
+            switch (data.type) {
+                case "ready":
+                    Debug.Log("✅ Helper is ready to stream!");
+                    isReceivingFrames = true;
+                    break;
+
+                case "frame":
+                    Debug.Log($"Frame metadata received: {message}");
+                    break;
+
+                case "error":
+                    Debug.LogError($"Helper error: {message}");
+                    break;
+            }
+        } catch (Exception e) {
+            Debug.LogError($"Failed to parse message: {e.Message}");
+        }
+    }
+
+    private void HandleBinaryFrame(byte[] data, int length) {
+        if (!isReceivingFrames) return;
+
+        // This is where you'd decode H.264 NAL units
+        // For now, just log that we received a frame
+        Debug.Log($"Received binary frame: {length} bytes");
+
+        // Example: If you have a decoder
+        // decoder.DecodeFrame(data, length, (decodedFrame) => {
+        //     videoTexture.LoadRawTextureData(decodedFrame);
+        //     videoTexture.Apply();
+        // });
+
+        // For testing: Create a random colored frame
+        // UpdateTestFrame();
+    }
+
+    // Test method to show the texture is updating
+    private void UpdateTestFrame() {
+        Color randomColor = new Color(
+            UnityEngine.Random.value,
+            UnityEngine.Random.value,
+            UnityEngine.Random.value
+        );
+
+        Color[] pixels = new Color[videoTexture.width * videoTexture.height];
+        for (int i = 0; i < pixels.Length; i++) {
+            pixels[i] = randomColor;
+        }
+
+        videoTexture.SetPixels(pixels);
+        videoTexture.Apply();
+    }
+
+    public void StopCapture() {
+        SendMessage(new {
+            to = "helper",
+            type = "stop",
+            appId = appId
+        });
+    }
 
     private void OnDestroy() {
-        videoTrack?.Dispose();
-        peerConnection?.Close();
-    }
+        StopCapture();
 
-    [Serializable]
-    private class SignalMsg
-    {
-        public string type;
-        public string sdp;
-        public string candidate;
-        public string sdpMid;
-        public int sdpMLineIndex;
-        public string appId;
+        if (webSocket != null && webSocket.State == WebSocketState.Open) {
+            webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Unity closing", CancellationToken.None);
+        }
+
+        cancellationToken?.Cancel();
+        cancellationToken?.Dispose();
     }
+}
+
+// Helper classes for JSON parsing
+[Serializable]
+public class WebSocketMessage
+{
+    public string to;
+    public string type;
+    public string appId;
+    public int processId;
 }

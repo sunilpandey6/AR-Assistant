@@ -18,7 +18,7 @@ public class ChatBoxManager : MonoBehaviour
     public GameObject userMessagePrefab;
     public GameObject assistantMessagePrefab;
 
-    [SerializeField] private string n8nUrl = "http://192.168.0.193:5678/webhook/unity-ai";
+    [SerializeField] private string n8nUrl;
     public AvatarAnimatorControl animatorControl;
 
     [SerializeField] private ElevenLabsTTS elevenLabsTTS;
@@ -27,6 +27,7 @@ public class ChatBoxManager : MonoBehaviour
 
     void Start() {
         sendButton.onClick.AddListener(OnSendMessageTxt);
+        n8nUrl = $"http://{TaskBarControl.serverIP}:5678/webhook/unity-ai";
     }
 
     void OnSendMessageTxt() {

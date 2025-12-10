@@ -5,6 +5,7 @@ using UnityEngine.Networking;
 using TMPro;
 using UnityEngine.UI;
 using System;
+using UnityEditor.Experimental.GraphView;
 
 [System.Serializable]
 public class AppData
@@ -30,10 +31,17 @@ public class LaunchResponse
 
 public class GetAppList : MonoBehaviour
 {
+    public TaskBarControl taskBarControl;
     public Transform appContainer; // Parent object to hold all app buttons
     public GameObject appButtonPrefab; // Prefab with Image + Text
 
-    private List<AppData> cachedApps = new List<AppData>();
+    private List<AppData> cachedApps = new ();
+
+    [Header("VR App Panels")]
+    public GameObject panelPrefab; // Prefab with Quad + AppPanel script + XRInteractable
+    public Texture videoTex;
+    // to hold app opened already?
+    private readonly Dictionary<String, GameObject> activePanels = new ();
 
     public IEnumerator FetchAppList(string serverIP) {
         yield return StartCoroutine(GetAppsFromServer(serverIP));
@@ -100,6 +108,7 @@ public class GetAppList : MonoBehaviour
             // Add the app button click listener
             buttonObj.GetComponent<Button>().onClick.AddListener(() => {
                 StartCoroutine(LaunchApp(serverIP, app.name));
+                taskBarControl.OnClickAppList();
             });
         }
     }
@@ -119,13 +128,8 @@ public class GetAppList : MonoBehaviour
             if (response.success) {
                 Debug.Log($"Successfully launched {appName} with AppID: {response.appId}");
 
-                // Optional: you can still spawn a UI panel or just log
-                // No video streaming, so placeholder texture is optional
-                Texture placeholder = Resources.Load<Texture>("default_texture");
-
-                // Optional: call UIManager if you want a panel
-                if (UIManager.Instance != null)
-                    UIManager.Instance.CreateVRPanel(response.appId, appName, placeholder);
+                //Have my corutine to start the connection and if conenction sucess the assign the stream data to AppPanelView
+                CreateAppPanel(appName,response.appId,videoTex);
             } else {
                 Debug.LogError($"Server failed to launch {appName}: {response.message}");
             }
@@ -133,30 +137,43 @@ public class GetAppList : MonoBehaviour
             Debug.LogError($"Failed to launch {appName}: {request.error}");
         }
     }
+    public void CreateAppPanel(string appName, string appId, Texture videoTex) {
+        GameObject panel = Instantiate(panelPrefab, TaskBarControl.taskbar);
+        TaskBarControl.ShowPanelInTop(panel);
+        panel.name = $"{appName}";
+        panel.transform.localPosition = new Vector3(UnityEngine.Random.Range(-0.5f, 0.5f), 1.2f, 1.5f);
+        panel.transform.localRotation = Quaternion.identity;
 
-    //IEnumerator LaunchApp(string serverIP, string appName) {
-    //    string launchUrl = $"http://{serverIP}:5000/launch?name={UnityWebRequest.EscapeURL(appName)}";
-    //    Debug.Log($"Launching {appName} via {launchUrl}");
-    //    UnityWebRequest request = UnityWebRequest.Get(launchUrl);
-    //    yield return request.SendWebRequest();
-    //    if (request.result == UnityWebRequest.Result.Success) {
-    //        string json = request.downloadHandler.text;
-    //        LaunchResponse response = JsonUtility.FromJson<LaunchResponse>(json);
-    //        if (response.success) {
-    //            Debug.Log($"Successfully launched {appName} with AppID: {response.appId}");
+        AppPanel appPanel = panel.GetComponent<AppPanel>();
+        appPanel.appId = appId;
+        appPanel.SetAppInfo(appName, videoTex);
+        appPanel.closeButton.onClick.AddListener(() => CloseAppPanel(appId));
 
-    //            // Optional: placeholder texture until app sends a live video
-    //            Texture placeholder = Resources.Load<Texture>("default_texture");
+    }
 
-    //            // Call UIManager to spawn VR panel
-    //            UIManager.Instance.CreateVRPanel(response.appId, appName, placeholder);
-    //        } else {
-    //            Debug.LogError($"Server failed to launch {appName}: {response.message}");
-    //        }
-    //    } 
-    //    else {
-    //        Debug.LogError($"Failed to launch {appName}: {request.error}");
-    //    }
-    //}
+    public void CloseAppPanel(string appId) {
+        if (!activePanels.ContainsKey(appId)) return;
+
+        StartCoroutine(CloseAppOnServer(appId));
+    }
+
+    private IEnumerator CloseAppOnServer(string appId) {
+        string url = $"http://{TaskBarControl.serverIP}:5000/close?appId={UnityWebRequest.EscapeURL(appId)}";
+        UnityWebRequest request = UnityWebRequest.Get(url);
+        yield return request.SendWebRequest();
+
+        if (request.result == UnityWebRequest.Result.Success) {
+            Debug.Log($"App {appId} closed successfully.");
+
+            // Destroy panel
+            Destroy(activePanels[appId]);
+            activePanels.Remove(appId);
+
+            // Show in AppList again
+            DisplayAppList(TaskBarControl.serverIP);
+        } else {
+            Debug.LogError($"Failed to close app {appId}: {request.error}");
+        }
+    }
 
 }

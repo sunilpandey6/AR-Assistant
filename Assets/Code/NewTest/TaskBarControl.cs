@@ -15,8 +15,8 @@ using System.IO;
 public class TaskBarControl : MonoBehaviour
 {
     [Header("TaskBar Position To Show In Top")]
-    [SerializeField] private Transform taskbar;
-    [SerializeField] private float topOffset = 2.25f;
+    [SerializeField] public static Transform taskbar;
+    [SerializeField] public static float topOffset = 2.25f;
 
     [Header("TaskBar Button")]
     [SerializeField] Button setting;
@@ -35,7 +35,7 @@ public class TaskBarControl : MonoBehaviour
     public Button submitButton;
     public TextMeshProUGUI status;
     [SerializeField] private bool connectionDone = false;
-    public string serverIP;
+    public static string serverIP;
     [SerializeField] private int port = 5000;
 
     [Header("App List Loader")]
@@ -66,7 +66,7 @@ public class TaskBarControl : MonoBehaviour
     [SerializeField] private AudioSource voiceSource;
 
     // Display panel in top of task bar
-    void ShowPanelInTop(GameObject panel) {
+    public static void ShowPanelInTop(GameObject panel) {
         if (panel == null || taskbar == null) return;
 
         Vector3 pos = taskbar.position + Vector3.up * topOffset;
@@ -163,7 +163,7 @@ public class TaskBarControl : MonoBehaviour
 
     #region AppList Button
     // when Applist button is pressed
-    public void OnClickAppList() {
+    public static void OnClickAppList() {
         if (!connectionDone) {
             ShowPanelInTop(connectionPanel);
             return;

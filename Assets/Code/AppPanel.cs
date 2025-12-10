@@ -12,11 +12,13 @@ public class AppPanel : MonoBehaviour
 
     [HideInInspector] public string appId;
 
-    private bool isMinimized = false;
+    private bool isMinimized;
     private Material runtimeMat;
     private Texture currentTexture;
 
     void Start() {
+        isMinimized = false;
+
         if (videoSurface != null) {
             runtimeMat = new Material(videoSurface.sharedMaterial);
             videoSurface.material = runtimeMat;
@@ -32,7 +34,6 @@ public class AppPanel : MonoBehaviour
     public void SetAppInfo(string appName, Texture videoTex) {
         if (appNameText != null)
             appNameText.text = appName;
-
         currentTexture = videoTex;
         //if (runtimeMat != null && currentTexture != null)
         //    runtimeMat.mainTexture = currentTexture;
