@@ -57,7 +57,9 @@ public class GetAppList : MonoBehaviour
 
         //assign the icons
         foreach (var app in response.apps) {
-            if (!string.IsNullOrEmpty(app.iconPath))  StartCoroutine(DownloadIcon(serverIP,app));
+            if (!string.IsNullOrEmpty(app.iconPath)) {
+                yield return StartCoroutine(DownloadIcon(serverIP,app));
+            }
             cachedApps.Add(app);
         }
 
