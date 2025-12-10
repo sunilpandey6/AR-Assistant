@@ -35,7 +35,7 @@ public class TaskBarControl : MonoBehaviour
     public Button submitButton;
     public TextMeshProUGUI status;
     [SerializeField] private bool connectionDone = false;
-    public string serverIP;
+    public static string serverIP;
     [SerializeField] private int port = 5000;
 
     [Header("App List Loader")]
