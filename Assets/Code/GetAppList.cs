@@ -12,6 +12,7 @@ public class AppData
     public string name;
     public string appPath;
     public string iconPath; // For JSON parsing
+    public string bundleId;
     [System.NonSerialized]
     public Sprite icon;       // Converted Sprite
 }
@@ -27,7 +28,6 @@ public class LaunchResponse
 {
     public bool success;
     public string message;
-    public string appId;
 }
 
 public class GetAppList : MonoBehaviour
@@ -113,10 +113,37 @@ public class GetAppList : MonoBehaviour
             LaunchResponse response = JsonUtility.FromJson<LaunchResponse>(json);
 
             if (response.success)
-                Debug.Log($"Launched {appPath} successfully. AppID: {response.appId}");
+            {
+                Debug.Log($"Launched {appPath} successfully.");
+
+                AppData launchedApp = cachedApps.Find(a => a.appPath == appPath);
+                if (launchedApp != null && !string.IsNullOrEmpty(launchedApp.bundleId))
+                {
+                    Debug.Log($"Waiting for app to open... (Target: {launchedApp.bundleId})");
+
+                    // Wait a moment for the app to open and Helper to be ready
+                    yield return new WaitForSeconds(2.0f);
+
+                    //// Send WebSocket Command to start streaming
+                    //if (ScreenShareClient.Instance != null)
+                    //{
+                    //    ScreenShareClient.Instance.StartCapture(launchedApp.bundleId);
+                    //}
+                    //else
+                    //{
+                    //    Debug.LogError("ScreenShareClient instance not found!");
+                    //}
+                }
+                else
+                {
+                    Debug.LogError("Could not find Bundle ID for launched app.");
+                }
+            }
             else
                 Debug.LogError($"Server failed to launch app: {response.message}");
-        } else {
+        }
+        else
+        {
             Debug.LogError($"Failed to contact server to launch app: {request.error}");
         }
     }

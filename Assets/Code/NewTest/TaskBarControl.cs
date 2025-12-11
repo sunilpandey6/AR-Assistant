@@ -15,8 +15,8 @@ using System.IO;
 public class TaskBarControl : MonoBehaviour
 {
     [Header("TaskBar Position To Show In Top")]
-    [SerializeField] private Transform taskbar;
-    [SerializeField] private float topOffset = 2.25f;
+    [SerializeField] public Transform taskbar;
+    [SerializeField] public float topOffset = 2.25f;
 
     [Header("TaskBar Button")]
     [SerializeField] Button setting;
