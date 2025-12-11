@@ -37,8 +37,8 @@ public class AppPanel : MonoBehaviour
         //if (runtimeMat != null && currentTexture != null)
         //    runtimeMat.mainTexture = currentTexture;
         runtimeMat.mainTexture = currentTexture;
-        var webrtc = gameObject.AddComponent<WebRTCReceiver>();
-        webrtc.Init(UIManager.Instance.serverIP, appId, videoSurface);
+        //var webrtc = gameObject.AddComponent<WebRTCReceiver>();
+        //webrtc.Init(UIManager.Instance.serverIP, appId, videoSurface);
     }
 
     void ToggleMinimize() {

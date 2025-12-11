@@ -170,7 +170,8 @@ public class TaskBarControl : MonoBehaviour
         }
         if (appListPanel.activeSelf) {
             ToggleClose(appListPanel);
-            return ;
+            return
+                ;
         } 
         
         ShowPanelInTop(appListPanel);
