@@ -19,4 +19,13 @@ public static class Keys
         }
         return elevenAsset.text.Trim();
     }
+
+    public static string LoadTTS() {
+        TextAsset tts = Resources.Load<TextAsset>("Secure/geminiTTS");
+        if (tts == null) {
+            Debug.LogError("ElevenLabs API key not found in Resources/Secure/elevenlabs.txt");
+            return string.Empty;
+        }
+        return tts.text.Trim();
+    }
 }

@@ -25,8 +25,8 @@ public class AppPanel : MonoBehaviour
         if (minimizeButton != null)
             minimizeButton.onClick.AddListener(ToggleMinimize);
 
-        if (closeButton != null)
-            closeButton.onClick.AddListener(() => UIManager.Instance.CloseVRPanel(appId));
+        //if (closeButton != null)
+            //closeButton.onClick.AddListener(() => UIManager.Instance.CloseVRPanel(appId));
     }
 
     public void SetAppInfo(string appName, Texture videoTex) {

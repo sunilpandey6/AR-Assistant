@@ -6,33 +6,31 @@ using UnityEngine.Networking;
 
 public class GeminiTTS : MonoBehaviour
 {
-    [Header("Gemini Settings")]
     private string apiKey;
     [SerializeField] private string model = "gemini-2.5-flash-preview-tts";
     [SerializeField] private string voiceName = "Schedar";
 
-    [Header("Avatar Components")]
     [SerializeField] private AudioSource voiceSource;
 
     private string apiUrl;
 
     private void Start() {
+        DebugLogger.Log("Unity gemini tts loading");
         apiKey = Keys.LoadGemini();
         apiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
-        DebugLogger.Log("GeminiTTS Start: API Key loaded? " + !string.IsNullOrEmpty(apiKey));
+        DebugLogger.Log(apiKey == null ? "Unity gemini tts not loaded" : "Unity gemini tts loaded");
+
     }
 
     public void Speak(string text) {
-        DebugLogger.Log("GeminiTTS Speak(): " + text);
         StartCoroutine(RequestSpeech(text));
     }
 
     private IEnumerator RequestSpeech(string text) {
-        DebugLogger.Log("GeminiTTS: Preparing TTS JSON...");
-
-        // --- Manual JSON (Quest-safe, matches Gemini docs exactly) ---
+        DebugLogger.Log("Request corutine start");
         string jsonBody = $@"
         {{
+            ""model"": ""{model}"",
             ""contents"": [
                 {{
                     ""parts"": [
@@ -53,86 +51,74 @@ public class GeminiTTS : MonoBehaviour
                 }}
             }}
         }}";
-        // --------------------------------------------------------------
-
-        DebugLogger.Log("GeminiTTS JSON:\n" + jsonBody);
+        DebugLogger.Log("Sending JSON body: " + jsonBody);  // Log JSON body
 
         byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonBody);
 
-        using (UnityWebRequest request = new (apiUrl, "POST")) {
+        DebugLogger.Log("sending");
+        using (UnityWebRequest request = new UnityWebRequest(apiUrl, "POST")) {
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
             request.downloadHandler = new DownloadHandlerBuffer();
             request.SetRequestHeader("Content-Type", "application/json");
 
-            DebugLogger.Log("GeminiTTS: Sending request...");
             yield return request.SendWebRequest();
 
             if (request.result != UnityWebRequest.Result.Success) {
-                DebugLogger.Log($"GeminiTTS ERROR: {request.error}\n{request.downloadHandler.text}");
+                Debug.LogError("GeminiTTS ERROR: " + request.error);
+                DebugLogger.Log("GeminiTTS ERROR: " + request.error);
+                
                 yield break;
             }
 
-            DebugLogger.Log("GeminiTTS: Response received. Parsing...");
+            string json = request.downloadHandler.text;
+            DebugLogger.Log("API Response: " + json);  // Log full response
 
-            string jsonResponse = request.downloadHandler.text;
-            DebugLogger.Log("GeminiTTS RAW RESPONSE:\n" + jsonResponse);
-
-            // Extract Base64 audio manually
-            string base64Audio = ExtractBase64Audio(jsonResponse);
+            string base64Audio = ExtractBase64Audio(json);
+            DebugLogger.Log("Base64 audio: " + base64Audio);  // Log base64 audio data
 
             if (string.IsNullOrEmpty(base64Audio)) {
-                DebugLogger.Log("GeminiTTS: ERROR — No audio found in response.");
+                DebugLogger.Log("GeminiTTS: No audio found in response.");
+                Debug.LogError("GeminiTTS: No audio found in response.");
                 yield break;
             }
 
-            DebugLogger.Log("GeminiTTS: Base64 audio extracted.");
+            byte[] pcmBytes = Convert.FromBase64String(base64Audio);
 
-            byte[] audioBytes = Convert.FromBase64String(base64Audio);
+            AudioClip clip = CreateClipFromPCM(pcmBytes);
 
-            AudioClip clip = CreateClipFromPCM(audioBytes);
-
-            if (clip != null && voiceSource != null) {
+            if (clip && voiceSource) {
                 voiceSource.clip = clip;
                 voiceSource.Play();
-                DebugLogger.Log("GeminiTTS: Audio playback started.");
             }
         }
     }
 
-    // ---------------------------
-    // Extracts inlineData.data manually
-    // ---------------------------
     private string ExtractBase64Audio(string json) {
-        const string key = "\"data\":\"";
-
-        int start = json.IndexOf(key);
+        const string dataKey = "\"data\":\"";
+        int start = json.IndexOf(dataKey);
         if (start < 0) return null;
 
-        start += key.Length;
-
+        start += dataKey.Length;
         int end = json.IndexOf("\"", start);
         if (end < 0) return null;
 
         return json.Substring(start, end - start);
     }
 
-    // ---------------------------
-    // PCM 16-bit → AudioClip
-    // ---------------------------
     private AudioClip CreateClipFromPCM(byte[] pcmData) {
-        int sampleCount = pcmData.Length / 2; // 16-bit PCM
+        int sampleCount = pcmData.Length / 2;
         float[] samples = new float[sampleCount];
 
         for (int i = 0; i < sampleCount; i++) {
-            short sample = BitConverter.ToInt16(pcmData, i * 2);
-            samples[i] = sample / 32768f;
+            short s = BitConverter.ToInt16(pcmData, i * 2);
+            samples[i] = s / 32768f;
         }
 
         AudioClip clip = AudioClip.Create(
             "GeminiTTS_Clip",
             sampleCount,
             1,
-            24000,   // Gemini always sends 24kHz PCM
+            24000,
             false
         );
 
@@ -140,7 +126,6 @@ public class GeminiTTS : MonoBehaviour
         return clip;
     }
 
-    // Safe text escaping
     private string EscapeJson(string s) {
         return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
     }

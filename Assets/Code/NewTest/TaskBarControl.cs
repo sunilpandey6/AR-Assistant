@@ -3,13 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.Networking;
 using UnityEngine.EventSystems;
 using TMPro;
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Net.WebSockets;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Text;
 using System.IO;
 
 public class TaskBarControl : MonoBehaviour
@@ -28,6 +22,8 @@ public class TaskBarControl : MonoBehaviour
     [Header("Setting Panel")]
     [SerializeField] private GameObject settingPanel;
     public static bool isVoice = false;
+    public Dropdown dropdown;
+    public static string selectedTTS;
 
     [Header("Connection Panel")]
     public GameObject connectionPanel;
@@ -158,6 +154,13 @@ public class TaskBarControl : MonoBehaviour
         DebugLogger.Log("Voice toggled: " + isVoice);
     }
 
+    public void OnDropdownValueChange(int index) {
+        switch(index) {
+            case 0: selectedTTS = "Gemini"; break;
+                case 1: selectedTTS = "Gemini"; break;
+                case 2: selectedTTS = "ElevenLabs"; break;
+        }
+    }
 
     #endregion
 
@@ -179,7 +182,7 @@ public class TaskBarControl : MonoBehaviour
         if (panelUI.activeSelf) { 
             if (PanelsOverlap(appListPanel,panelUI))
                     ShowPanelRightOf(appListPanel, panelUI);
-        }    
+        }
     }
 
     // Connection Panel Connection

@@ -27,7 +27,6 @@ public class ChatBoxManager : MonoBehaviour
 
 
     void Start() {
-        n8nUrl = "http://" + TaskBarControl.serverIP + ":5678/webhook/unity-ai";
         sendButton.onClick.AddListener(OnSendMessageTxt);
     }
 
@@ -59,6 +58,11 @@ public class ChatBoxManager : MonoBehaviour
 
     public IEnumerator SendToN8N(N8nRequest payload) {
         animatorControl.PlayNod();
+        if (TaskBarControl.serverIP == null) {
+            AddMessage("First Make connection To System with Correct IP", false);
+            yield break; 
+        }
+            
         yield return StartCoroutine(SendMessageToN8N(payload));
         
     }
@@ -66,7 +70,7 @@ public class ChatBoxManager : MonoBehaviour
     IEnumerator SendMessageToN8N(N8nRequest payload) {
 
         string jsonData = JsonUtility.ToJson(payload);
-
+        n8nUrl = "http://" + TaskBarControl.serverIP + ":5678/webhook/unity-ai";
         using (var www = new UnityWebRequest(n8nUrl, "POST")) {
             byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
             www.uploadHandler = new UploadHandlerRaw(bodyRaw);
@@ -88,10 +92,12 @@ public class ChatBoxManager : MonoBehaviour
                     if (response != null && TaskBarControl.isVoice) {
                         //play voice message
                         AddMessage(response.output, false);
-                        //elevenLabsTTS.Speak(response.voice);
-                        geminiTTS.Speak(response.voice);
-                    }
-                    else if (response != null && !string.IsNullOrEmpty(response.output)) {
+                        if (TaskBarControl.selectedTTS == "ElevenLabs")
+                            elevenLabsTTS.Speak(response.voice);
+                        else
+                            geminiTTS.Speak(response.voice);
+
+                    } else if (response != null && !string.IsNullOrEmpty(response.output)) {
                         AddMessage(response.output, false);
                     }
                     else {
