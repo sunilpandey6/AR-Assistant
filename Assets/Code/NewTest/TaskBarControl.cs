@@ -5,6 +5,8 @@ using UnityEngine.EventSystems;
 using TMPro;
 using System.Collections;
 using System.IO;
+using Oculus.Voice.Dictation;
+
 
 public class TaskBarControl : MonoBehaviour
 {
@@ -21,9 +23,9 @@ public class TaskBarControl : MonoBehaviour
 
     [Header("Setting Panel")]
     [SerializeField] private GameObject settingPanel;
-    public static bool isVoice = false;
-    public Dropdown dropdown;
-    public static string selectedTTS;
+    public static bool isVoice = true;
+    //public Dropdown dropdown;
+    //public static string selectedTTS;
 
     [Header("Connection Panel")]
     public GameObject connectionPanel;
@@ -58,8 +60,12 @@ public class TaskBarControl : MonoBehaviour
     
 
     [Header("Voice Recording Settings")]
-    [SerializeField] private RecordAudio recordAudio;
-    [SerializeField] private AudioSource voiceSource;
+    //[SerializeField] private RecordAudio recordAudio;
+    //[SerializeField] private AudioSource voiceSource;
+    [SerializeField] private AppDictationExperience dictation;
+    private bool isRecording = false;
+
+
 
     // Display panel in top of task bar
     void ShowPanelInTop(GameObject panel) {
@@ -102,23 +108,24 @@ public class TaskBarControl : MonoBehaviour
         // showApp.onClick.AddListener(OnClickAppList);
         // showAvatar.onClick.AddListener(OnCLickShowAvatar);  
         // showChat.onClick.AddListener(() => OnClickShowChatUI(panelUI));
+
         //voice Button
         //voice.onClick.AddListener(OnPointerDown);
-        var eventTrigger = voice.gameObject.AddComponent<EventTrigger>();
-        // Pointer Down
-        var pointerDown = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
-        pointerDown.callback.AddListener((data) => { StartRecording(); });
-        eventTrigger.triggers.Add(pointerDown);
+        //var eventTrigger = voice.gameObject.AddComponent<EventTrigger>();
+        //// Pointer Down
+        //var pointerDown = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
+        //pointerDown.callback.AddListener((data) => { StartRecording(); });
+        //eventTrigger.triggers.Add(pointerDown);
 
-        // Pointer Up
-        var pointerUp = new EventTrigger.Entry { eventID = EventTriggerType.PointerUp };
-        pointerUp.callback.AddListener((data) => { StopRecording(); });
-        eventTrigger.triggers.Add(pointerUp);
+        //// Pointer Up
+        //var pointerUp = new EventTrigger.Entry { eventID = EventTriggerType.PointerUp };
+        //pointerUp.callback.AddListener((data) => { StopRecording(); });
+        //eventTrigger.triggers.Add(pointerUp);
 
         // connectionPanel
-        submitButton.onClick.AddListener(OnConnectClick);
+        //submitButton.onClick.AddListener(OnConnectClick);
         // AppListPanel
-        closeAppList.onClick.AddListener(() => ToggleClose(appListPanel));
+        //closeAppList.onClick.AddListener(() => ToggleClose(appListPanel));
 
     }
 
@@ -154,13 +161,13 @@ public class TaskBarControl : MonoBehaviour
         DebugLogger.Log("Voice toggled: " + isVoice);
     }
 
-    public void OnDropdownValueChange(int index) {
-        switch(index) {
-            case 0: selectedTTS = "Gemini"; break;
-                case 1: selectedTTS = "Gemini"; break;
-                case 2: selectedTTS = "ElevenLabs"; break;
-        }
-    }
+    //public void OnDropdownValueChange(int index) {
+    //    switch(index) {
+    //        case 0: selectedTTS = "Gemini"; break;
+    //            case 1: selectedTTS = "Gemini"; break;
+    //            case 2: selectedTTS = "ElevenLabs"; break;
+    //    }
+    //}
 
     #endregion
 
@@ -186,7 +193,7 @@ public class TaskBarControl : MonoBehaviour
     }
 
     // Connection Panel Connection
-    void OnConnectClick() {
+    public void OnConnectClick() {
         serverIP = IPInput.text.Trim();
 
         if (string.IsNullOrEmpty(serverIP)) {
@@ -241,23 +248,76 @@ public class TaskBarControl : MonoBehaviour
     #endregion
 
     #region Voice control
-    public void StartRecording() {
+    //public void StartRecording() {
+    //    animatorControl.PlayNod();
+    //    recordAudio.StartRecording();
+    //}
+
+    //public void StopRecording() {
+    //    recordAudio.StopRecording((result) => {
+    //        animatorControl.PlayNod();
+    //        chatBoxManager.AddMessage(result, true);
+    //        var payload = new N8nRequest {
+    //            sessionId = "1001",
+    //            message = result,
+    //            voice = TaskBarControl.isVoice
+    //        };
+    //        StartCoroutine(chatBoxManager.SendToN8N(payload));
+    //    });
+    //}
+
+    public void ToggleDictation()
+    {
         animatorControl.PlayNod();
-        recordAudio.StartRecording();
+
+        if (!isRecording)
+        {
+            dictation.Activate();   // START listening
+            DebugLogger.Log("Dictation started");
+        }
+        else
+        {
+            dictation.Deactivate(); // STOP listening
+            DebugLogger.Log("Dictation stopped");
+        }
+
+        isRecording = !isRecording;
+
+
     }
 
-    public void StopRecording() {
-        recordAudio.StopRecording((result) => {
-            animatorControl.PlayNod();
-            chatBoxManager.AddMessage(result, true);
-            var payload = new N8nRequest {
-                sessionId = "1001",
-                message = result,
-                voice = TaskBarControl.isVoice
-            };
-            StartCoroutine(chatBoxManager.SendToN8N(payload));
-        });
+    private void OnEnable()
+    {
+        dictation.DictationEvents.OnFullTranscription.AddListener(OnText);
     }
+
+    private void OnDisable()
+    {
+        dictation.DictationEvents.OnFullTranscription.RemoveListener(OnText);
+    }
+
+    private void OnText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
+        // Show user message
+        chatBoxManager.AddMessage(text, true);
+
+        // Create payload
+        var payload = new N8nRequest
+        {
+            sessionId = "1001",
+            message = text,
+            voice = TaskBarControl.isVoice
+        };
+
+        // Send to server
+        chatBoxManager.StartCoroutine(
+            chatBoxManager.SendToN8N(payload)
+        );
+    }
+
     #endregion
 
     #region Chat
@@ -289,86 +349,4 @@ public class TaskBarControl : MonoBehaviour
     }
 
     #endregion
-
-    public void CheckTTS() {
-
-        StartCoroutine(TestAudioPlay());
-
-        //Save clip and send for transcription
-        AudioClip clip = Resources.Load<AudioClip>("Audio/test_audio");
-
-        string tempPath = Path.Combine(Application.temporaryCachePath, "tts.wav");
-        DebugLogger.Log("Saving temp TTS file to: " + tempPath);
-
-        WavUtility.Save(tempPath, clip);
-
-        DebugLogger.Log("Sending audio for transcription...");
-
-        // Directly start the transcription coroutine
-        StartCoroutine(recordAudio.TranscribeAudio(tempPath, (transcription) => {
-            DebugLogger.Log("Transcription returned: " + transcription);
-        }));
-
-        DebugLogger.Log("===== CheckTTS() SETUP COMPLETE =====");
-    }
-
-    private IEnumerator TestAudioPlay() {
-        DebugLogger.Log("===== CheckTTS PLAY TEST =====");
-
-        // 1. Load audio
-        AudioClip clip = Resources.Load<AudioClip>("Audio/test_audio");
-        if (clip == null) {
-            DebugLogger.Log("NO AUDIO FOUND in Resources/Audio/test_audio");
-            yield break;
-        }
-
-        DebugLogger.Log("Clip loaded: " + clip.name + ", length = " + clip.length);
-
-        // 2. Ensure avatar is active
-        DebugLogger.Log("Avatar active before: " + avatar.activeSelf);
-        if (!avatar.activeSelf) {
-            DebugLogger.Log("Avatar was inactive. Activating...");
-            avatar.SetActive(true);
-        }
-        DebugLogger.Log("Avatar active after: " + avatar.activeSelf);
-        animatorControl.StartTalking();
-        // 3. Check AudioListeners
-        AudioListener[] listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
-        DebugLogger.Log("AudioListeners found: " + listeners.Length);
-
-        for (int i = 0; i < listeners.Length; i++) {
-            DebugLogger.Log("Listener[" + i + "] on object: " + listeners[i].gameObject.name);
-        }
-
-        //// 4. Log AudioSource details
-        //DebugLogger.Log("AudioSource object activeInHierarchy: " + voiceSource.gameObject.activeInHierarchy);
-        //DebugLogger.Log("AudioSource enabled: " + voiceSource.enabled);
-        //DebugLogger.Log("AudioSource volume: " + voiceSource.volume);
-        //DebugLogger.Log("AudioSource spatialBlend BEFORE: " + voiceSource.spatialBlend);
-
-        // 5. Force audio to 2D
-        voiceSource.spatialBlend = 0f;
-        voiceSource.rolloffMode = AudioRolloffMode.Linear;
-        voiceSource.minDistance = 0.1f;
-        voiceSource.maxDistance = 100f;
-
-        DebugLogger.Log("AudioSource spatialBlend AFTER: " + voiceSource.spatialBlend);
-
-        // 6. Set clip
-        voiceSource.clip = clip;
-        voiceSource.playOnAwake = false;
-
-        // 7. Wait one frame (required on Quest)
-        yield return null;
-
-        DebugLogger.Log("Calling Play() on AudioSource: " + voiceSource.gameObject.name);
-        voiceSource.Play();
-
-        DebugLogger.Log("Waiting for clip to finish...");
-        yield return new WaitForSeconds(clip.length);
-        animatorControl.StopTalking();
-        DebugLogger.Log("Finished playing.");
-    }
-
-
 }

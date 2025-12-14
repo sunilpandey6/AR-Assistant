@@ -8,6 +8,7 @@ using System;
 
 
 
+
 public class ChatBoxManager : MonoBehaviour
 {
     [Header("UI References")]
@@ -17,7 +18,6 @@ public class ChatBoxManager : MonoBehaviour
     public Transform contentArea;
     public GameObject userMessagePrefab;
     public GameObject assistantMessagePrefab;
-
 
     [SerializeField] private string n8nUrl;
     public AvatarAnimatorControl animatorControl;
@@ -85,18 +85,18 @@ public class ChatBoxManager : MonoBehaviour
                 string responseJson = www.downloadHandler.text;
                 Debug.Log($"Received from n8n: {responseJson}");
 
-                // Parse n8n’s JSON response (expects { "output": "..." })
+                // Parse n8n?s JSON response (expects { "output": "..." })
                 try {
                     N8nResponse response = JsonUtility.FromJson<N8nResponse>(responseJson);
 
                     if (response != null && TaskBarControl.isVoice) {
                         //play voice message
                         AddMessage(response.output, false);
-                        if (TaskBarControl.selectedTTS == "ElevenLabs")
-                            elevenLabsTTS.Speak(response.voice);
-                        else
-                            geminiTTS.Speak(response.voice);
+                        DebugLogger.Log("response output addded voice now");
+                        animatorControl.StartTalking();
+                        VoiceTriggerManager.Instance.SpeakMessage(response.voice);
 
+                        DebugLogger.Log("voice done");
                     } else if (response != null && !string.IsNullOrEmpty(response.output)) {
                         AddMessage(response.output, false);
                     }

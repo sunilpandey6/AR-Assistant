@@ -12,9 +12,9 @@ public class AvatarAnimatorControl : MonoBehaviour
         anim.SetBool("IsTalking", true);
     }
 
-    public void StopTalking() {
-        anim.SetBool("IsTalking", false);
-    }
+    //public void StopTalking() {
+    //    anim.SetBool("IsTalking", false);
+    //}
 
     public void SetVisible(bool state) {
         anim.SetBool("IsVisible", state);
