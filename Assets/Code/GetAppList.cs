@@ -36,7 +36,11 @@ public class GetAppList : MonoBehaviour
     public Transform appContainer;         // Parent object for app buttons
     public GameObject appButtonPrefab;     // Button prefab with Text + Icon
 
-   
+    [Header("UI Prefab")]
+    public AppPanel appPanelPrefab;
+    [Header("Active Panel Manager")]
+    public ActivePanelManager aPM;
+
     private readonly List<AppData> cachedApps = new ();
 
     // Fetch app list from Mac server
@@ -124,15 +128,11 @@ public class GetAppList : MonoBehaviour
                     // Wait a moment for the app to open and Helper to be ready
                     yield return new WaitForSeconds(2.0f);
 
-                    //// Send WebSocket Command to start streaming
-                    //if (ScreenShareClient.Instance != null)
-                    //{
-                    //    ScreenShareClient.Instance.StartCapture(launchedApp.bundleId);
-                    //}
-                    //else
-                    //{
-                    //    Debug.LogError("ScreenShareClient instance not found!");
-                    //}
+                    AppPanel newPanel = Instantiate(appPanelPrefab);
+                    newPanel.aPM = aPM; // assign your ActivePanelManager
+                    newPanel.Initialize(launchedApp.name, launchedApp.bundleId);
+                    newPanel.StartScreenShare();
+                    
                 }
                 else
                 {

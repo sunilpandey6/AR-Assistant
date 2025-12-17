@@ -24,8 +24,8 @@ public class TaskBarControl : MonoBehaviour
     [Header("Setting Panel")]
     [SerializeField] private GameObject settingPanel;
     public static bool isVoice = true;
-    //public Dropdown dropdown;
-    //public static string selectedTTS;
+    public Dropdown dropdown;
+    public static string selectedTTS;
 
     [Header("Connection Panel")]
     public GameObject connectionPanel;
@@ -54,8 +54,8 @@ public class TaskBarControl : MonoBehaviour
 
     [Header("Chat UI References")]
     public GameObject panelUI;
-    [SerializeField] private float horizontalSpacing = 0.35f;
-    [SerializeField] private float rotatepanel = 25f;
+    //[SerializeField] private float horizontalSpacing = 0.35f;
+    //[SerializeField] private float rotatepanel = 25f;
     [SerializeField] private ChatBoxManager chatBoxManager;
     
 
@@ -65,10 +65,10 @@ public class TaskBarControl : MonoBehaviour
     [SerializeField] private AppDictationExperience dictation;
     private bool isRecording = false;
 
-
+    public ActivePanelManager aPM;
 
     // Display panel in top of task bar
-    void ShowPanelInTop(GameObject panel) {
+    public void ShowPanelInTop(GameObject panel) {
         if (panel == null || taskbar == null) return;
 
         Vector3 pos = taskbar.position + Vector3.up * topOffset;
@@ -148,12 +148,7 @@ public class TaskBarControl : MonoBehaviour
     }
     #region Setting
     public void OnClickSetting() {
-        if (settingPanel.activeSelf) {
-            ToggleClose(settingPanel);
-            return;
-        }
-
-        ShowPanelInTop(settingPanel);
+        aPM.TogglePanel(settingPanel);
     }
 
     public void SetVoiceEnabled(bool value) {
@@ -161,13 +156,16 @@ public class TaskBarControl : MonoBehaviour
         DebugLogger.Log("Voice toggled: " + isVoice);
     }
 
-    //public void OnDropdownValueChange(int index) {
-    //    switch(index) {
-    //        case 0: selectedTTS = "Gemini"; break;
-    //            case 1: selectedTTS = "Gemini"; break;
-    //            case 2: selectedTTS = "ElevenLabs"; break;
-    //    }
-    //}
+    public void Dropdownselect(int index)
+    {
+        switch (index)
+        {
+            case 0: selectedTTS = "Def "; break;
+            case 1: selectedTTS = "Ele"; break;
+            default: selectedTTS = "Def"; break;
+        }
+        DebugLogger.Log("Slected TTS is" + selectedTTS);
+    }
 
     #endregion
 
@@ -175,21 +173,10 @@ public class TaskBarControl : MonoBehaviour
     // when Applist button is pressed
     public void OnClickAppList() {
         if (!connectionDone) {
-            ShowPanelInTop(connectionPanel);
+            aPM.TogglePanel(connectionPanel);
             return;
         }
-        if (appListPanel.activeSelf) {
-            ToggleClose(appListPanel);
-            return
-                ;
-        } 
-        
-        ShowPanelInTop(appListPanel);
-        appListLoader.DisplayAppList(serverIP);
-        if (panelUI.activeSelf) { 
-            if (PanelsOverlap(appListPanel,panelUI))
-                    ShowPanelRightOf(appListPanel, panelUI);
-        }
+        aPM.TogglePanel(appListPanel);
     }
 
     // Connection Panel Connection
@@ -216,9 +203,10 @@ public class TaskBarControl : MonoBehaviour
             yield return new WaitForSeconds(1f);
             
             yield return StartCoroutine(appListLoader.FetchAppList(serverIP));
-            ToggleClose(connectionPanel);
+            aPM.TogglePanel(connectionPanel);
             connectionDone = true;
-            ShowPanelInTop(appListPanel);
+            //ShowPanelInTop(appListPanel);
+            aPM.TogglePanel(appListPanel);
         } else {
             status.text = $"Connection failed: {req.error}";
         }
@@ -322,31 +310,31 @@ public class TaskBarControl : MonoBehaviour
 
     #region Chat
 
-    void ShowPanelRightOf(GameObject basePanel, GameObject panelToShow) {
-        Vector3 pos = basePanel.transform.position + taskbar.right * horizontalSpacing;
-        Quaternion rot = basePanel.transform.rotation * Quaternion.Euler(0f, rotatepanel, 0f);
+    //void ShowPanelRightOf(GameObject basePanel, GameObject panelToShow) {
+    //    Vector3 pos = basePanel.transform.position + taskbar.right * horizontalSpacing;
+    //    Quaternion rot = basePanel.transform.rotation * Quaternion.Euler(0f, rotatepanel, 0f);
 
-        panelToShow.transform.SetPositionAndRotation(pos, rot);
-    }
+    //    panelToShow.transform.SetPositionAndRotation(pos, rot);
+    //}
 
 
-    public void OnClickShowChatUI(GameObject panel) {
-        if (panel == null) return;
-        bool newState = !panel.activeSelf;
-        if (!newState) {
-            ToggleClose(panel);
-            return;
-        }
+    //public void OnClickShowChatUI(GameObject panel) {
+    //    if (panel == null) return;
+    //    bool newState = !panel.activeSelf;
+    //    if (!newState) {
+    //        ToggleClose(panel);
+    //        return;
+    //    }
 
         
-        // If AppList is active
-        if (appListPanel.activeSelf) 
-            ShowPanelRightOf(appListPanel, panel);
-        else
-            ShowPanelInTop(panel);  
+    //    // If AppList is active
+    //    if (appListPanel.activeSelf) 
+    //        ShowPanelRightOf(appListPanel, panel);
+    //    else
+    //        ShowPanelInTop(panel);  
 
-        panel.SetActive(true);
-    }
+    //    panel.SetActive(true);
+    //}
 
     #endregion
 }

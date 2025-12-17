@@ -93,9 +93,15 @@ public class ChatBoxManager : MonoBehaviour
                         //play voice message
                         AddMessage(response.output, false);
                         DebugLogger.Log("response output addded voice now");
+                        DebugLogger.Log($"selected TTS  value in N8N response= {TaskBarControl.selectedTTS}");
                         animatorControl.StartTalking();
-                        VoiceTriggerManager.Instance.SpeakMessage(response.voice);
-
+                        if (TaskBarControl.selectedTTS == "Ele")
+                        {
+                            DebugLogger.Log("selected method elevenlabs");
+                            elevenLabsTTS.Speak(response.voice);
+                        }
+                        else VoiceTriggerManager.Instance.SpeakMessage(response.voice);
+                        animatorControl.StopTalking();
                         DebugLogger.Log("voice done");
                     } else if (response != null && !string.IsNullOrEmpty(response.output)) {
                         AddMessage(response.output, false);

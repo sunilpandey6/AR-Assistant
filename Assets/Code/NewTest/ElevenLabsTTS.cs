@@ -24,9 +24,9 @@ public class ElevenLabsTTS : MonoBehaviour
     }
 
     private void Start() {
-        DebugLogger.Log("Unity gemini tts loading");
+        DebugLogger.Log("Unity 11 tts loading");
         apiKey = Keys.LoadEleven();
-        DebugLogger.Log("Unity gemini tts loaded");
+        DebugLogger.Log("Unity 11 tts loaded");
     }
     public void Speak(string text) {
         StartCoroutine(RequestSpeech(text));
