@@ -1,6 +1,8 @@
 {
   "dependencies": {
     "com.meta.xr.sdk.all": "81.0.0",
+    "com.tlabaltoh.vkeyborad": "https://github.com/TLabAltoh/TLabVKeyborad.git#upm",
+    "com.tlabaltoh.webview": "https://github.com/TLabAltoh/TLabWebView.git#upm",
     "com.unity.2d.sprite": "1.0.0",
     "com.unity.ai.navigation": "2.0.6",
     "com.unity.cloud.gltfast": "6.0.1",
